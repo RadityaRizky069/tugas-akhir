@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 
 MATCH_THRESHOLD = 40
+SIMILARITY_THRESHOLD = 90.0
 RATIO_THRESHOLD = 0.75
 
 
@@ -29,10 +30,8 @@ def match_features(desc1, desc2):
     return len(good_matches), similarity
 
 
-def verify_palmprint(num_matches):
-    if num_matches >= MATCH_THRESHOLD:
-        return True
-    return False
+def verify_palmprint(similarity_score):
+    return similarity_score >= SIMILARITY_THRESHOLD
 
 
 def calculate_score(num_matches, total_keypoints):
