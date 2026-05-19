@@ -620,7 +620,7 @@ class MainWindow(QMainWindow):
             return
 
         num_matches, similarity = match_features(self.ref_descriptors, self.test_descriptors)
-        is_match = verify_palmprint(num_matches)
+        is_match = verify_palmprint(similarity)
 
         if is_match:
             status_text = "COCOK"
@@ -637,6 +637,15 @@ class MainWindow(QMainWindow):
             f"Verifikasi: {status_text} | Match: {num_matches} | "
             f"Skor: {similarity:.1f}% | {decision}"
         )
+
+        kp_ref = self.ref_keypoints or []
+        kp_test = self.test_keypoints or []
+        print("Keypoint Referensi:", len(kp_ref))
+        print("Keypoint Uji:", len(kp_test))
+        print("Good Matches:", num_matches)
+        print("Similarity Score:", similarity)
+        print("Status:", status_text)
+        print("Keputusan:", decision)
 
     def _reset_all(self):
         self.ref_image = None
