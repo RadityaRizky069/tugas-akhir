@@ -10,7 +10,7 @@ def load_database():
     try:
         with open(DB_FILE, 'rb') as f:
             return pickle.load(f)
-    except (pickle.UnpicklingError, EOFError):
+    except (pickle.UnpicklingError, EOFError, ModuleNotFoundError):
         return {}
 
 
