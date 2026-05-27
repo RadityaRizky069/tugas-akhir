@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog
+from tkinter import filedialog, ttk
 import customtkinter as ctk
 import threading
 import cv2
@@ -167,6 +167,14 @@ class PalmprintGUI:
             command=lambda: self._show_frame("ver"))
         self.btn_nav_ver.pack(fill=tk.X, padx=14, pady=6)
 
+        self.btn_nav_manage = ctk.CTkButton(
+            self.sidebar, text="  ⚙  Kelola User",
+            anchor="w", height=46, corner_radius=8,
+            fg_color="transparent", text_color="#E5E7EB",
+            hover_color="#1E293B", font=(FONT_FAMILY, 13, "bold"),
+            command=lambda: self._show_frame("manage"))
+        self.btn_nav_manage.pack(fill=tk.X, padx=14, pady=6)
+
         # Footer info
         footer = ctk.CTkLabel(self.sidebar, text="v1.0.0 — SIFT Engine",
                               font=(FONT_FAMILY, 10), text_color="#6B7280")
@@ -179,25 +187,35 @@ class PalmprintGUI:
         # Build individual frames inside the main container
         self.frame_reg = tk.Frame(self.main_container, bg=COLOR_BG)
         self.frame_ver = tk.Frame(self.main_container, bg=COLOR_BG)
+        self.frame_manage = tk.Frame(self.main_container, bg=COLOR_BG)
         
         self._init_registration_frame(self.frame_reg)
         self._init_verification_frame(self.frame_ver)
+        self._init_manage_frame(self.frame_manage)
 
     def _show_frame(self, name):
         """Switches content panel and updates navigation button styling."""
+        # Hide all frames first
+        self.frame_reg.pack_forget()
+        self.frame_ver.pack_forget()
+        self.frame_manage.pack_forget()
+
+        # Reset all nav buttons to inactive
+        self.btn_nav_reg.configure(fg_color="transparent", text_color="#E5E7EB")
+        self.btn_nav_ver.configure(fg_color="transparent", text_color="#E5E7EB")
+        self.btn_nav_manage.configure(fg_color="transparent", text_color="#E5E7EB")
+
         if name == "reg":
-            self.frame_ver.pack_forget()
             self.frame_reg.pack(fill=tk.BOTH, expand=True)
-
             self.btn_nav_reg.configure(fg_color=COLOR_ACCENT, text_color="#FFFFFF")
-            self.btn_nav_ver.configure(fg_color="transparent", text_color="#E5E7EB")
-        else:
-            self.frame_reg.pack_forget()
+        elif name == "ver":
             self.frame_ver.pack(fill=tk.BOTH, expand=True)
-
             self.btn_nav_ver.configure(fg_color=COLOR_ACCENT, text_color="#FFFFFF")
-            self.btn_nav_reg.configure(fg_color="transparent", text_color="#E5E7EB")
             self._refresh_user_list()
+        elif name == "manage":
+            self.frame_manage.pack(fill=tk.BOTH, expand=True)
+            self.btn_nav_manage.configure(fg_color=COLOR_ACCENT, text_color="#FFFFFF")
+            self._refresh_manage_user_list()
 
     # ════════════════════════════════════════════════════════════════════
     #  UI COMPONENT HELPERS (CARDS)
@@ -810,3 +828,303 @@ class PalmprintGUI:
         self.canvas_viz.config(width=pil_img.width, height=pil_img.height)
         self.canvas_viz.delete("all")
         self.canvas_viz.create_image(0, 0, anchor=tk.NW, image=self._img_tk_ref)
+
+    # ════════════════════════════════════════════════════════════════════
+    #  MANAGE USER VIEW
+    # ════════════════════════════════════════════════════════════════════
+
+    def _init_manage_frame(self, parent):
+        self._create_header_banner(
+            parent, "Kelola User",
+            "Lihat, hapus, atau ubah folder dataset pengguna yang terdaftar."
+        )
+
+        # Main content area
+        content = tk.Frame(parent, bg=COLOR_BG)
+        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+        content.columnconfigure(0, weight=1)
+        content.rowconfigure(0, weight=1)
+
+        # ── Left side: User table ─────────────────────────────────────
+        table_card = self._create_card(content, "Daftar User Terdaftar",
+                                       "Pilih user dari tabel di bawah untuk mengelola data.")
+        table_card.grid(row=0, column=0, sticky="nsew", padx=6)
+
+        # Toolbar row (refresh + action buttons)
+        toolbar = tk.Frame(table_card, bg=COLOR_CARD)
+        toolbar.pack(fill=tk.X, padx=24, pady=(4, 10))
+
+        ctk.CTkButton(
+            toolbar, text="🔄  Refresh", width=110, height=36, corner_radius=8,
+            fg_color=COLOR_LOG_BG, text_color=COLOR_TEXT_MAIN,
+            hover_color=COLOR_BORDER, font=(FONT_FAMILY, 11, "bold"),
+            command=self._refresh_manage_user_list
+        ).pack(side=tk.LEFT, padx=(0, 8))
+
+        ctk.CTkButton(
+            toolbar, text="📁  Ubah Folder Dataset", width=180, height=36, corner_radius=8,
+            fg_color="#3B82F6", text_color="#FFFFFF",
+            hover_color="#2563EB", font=(FONT_FAMILY, 11, "bold"),
+            command=self._manage_change_folder
+        ).pack(side=tk.LEFT, padx=(0, 8))
+
+        ctk.CTkButton(
+            toolbar, text="🗑  Hapus User", width=130, height=36, corner_radius=8,
+            fg_color=COLOR_ERROR, text_color="#FFFFFF",
+            hover_color="#DC2626", font=(FONT_FAMILY, 11, "bold"),
+            command=self._manage_delete_user
+        ).pack(side=tk.LEFT)
+
+        # Treeview (user table)
+        tree_frame = tk.Frame(table_card, bg=COLOR_CARD)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=24, pady=(0, 24))
+
+        # Style the treeview to match the app theme
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("Manage.Treeview",
+                        background=COLOR_CARD,
+                        foreground=COLOR_TEXT_MAIN,
+                        fieldbackground=COLOR_CARD,
+                        font=(FONT_FAMILY, 11),
+                        rowheight=38,
+                        borderwidth=0)
+        style.configure("Manage.Treeview.Heading",
+                        background=COLOR_LOG_BG,
+                        foreground=COLOR_TEXT_MAIN,
+                        font=(FONT_FAMILY, 11, "bold"),
+                        borderwidth=1,
+                        relief="flat")
+        style.map("Manage.Treeview",
+                  background=[("selected", "#E0E7FF")],
+                  foreground=[("selected", COLOR_ACCENT)])
+
+        columns = ("no", "username", "jumlah_data")
+        self.manage_tree = ttk.Treeview(
+            tree_frame, columns=columns, show="headings",
+            style="Manage.Treeview", selectmode="browse")
+
+        self.manage_tree.heading("no", text="No")
+        self.manage_tree.heading("username", text="Username")
+        self.manage_tree.heading("jumlah_data", text="Jumlah Data Palmprint")
+
+        self.manage_tree.column("no", width=50, anchor="center", stretch=False)
+        self.manage_tree.column("username", width=250, anchor="w")
+        self.manage_tree.column("jumlah_data", width=180, anchor="center")
+
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL,
+                                  command=self.manage_tree.yview)
+        self.manage_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.manage_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Log area for manage operations
+        log_card = self._create_card(content, "Log Operasi",
+                                     "Output status operasi kelola user.")
+        log_card.grid(row=1, column=0, sticky="nsew", padx=6, pady=(16, 0))
+        content.rowconfigure(1, weight=0)
+
+        self.manage_log_text = ctk.CTkTextbox(
+            log_card, fg_color=COLOR_LOG_BG, text_color=COLOR_TEXT_MAIN,
+            font=("Consolas", 11), state="disabled", corner_radius=8,
+            border_width=1, border_color=COLOR_BORDER, height=150)
+        self.manage_log_text.pack(fill=tk.X, padx=24, pady=(10, 24))
+
+    def _manage_log(self, msg):
+        self.root.after(0, self._do_manage_log, msg)
+
+    def _do_manage_log(self, msg):
+        self.manage_log_text.configure(state="normal")
+        self.manage_log_text.insert(tk.END, msg + "\n")
+        self.manage_log_text.see(tk.END)
+        self.manage_log_text.configure(state="disabled")
+
+    def _refresh_manage_user_list(self):
+        """Reload the user table from the database."""
+        for item in self.manage_tree.get_children():
+            self.manage_tree.delete(item)
+
+        db = utils.load_database()
+        for idx, (username, entries) in enumerate(db.items(), 1):
+            count = len(entries) if isinstance(entries, list) else 0
+            self.manage_tree.insert("", tk.END, values=(idx, username, f"{count} file"))
+
+    def _get_selected_manage_user(self):
+        """Return the username of the currently selected row in the treeview."""
+        sel = self.manage_tree.selection()
+        if not sel:
+            self._show_popup("Peringatan", "Pilih user dari tabel terlebih dahulu!", "warning")
+            return None
+        values = self.manage_tree.item(sel[0], "values")
+        return values[1]  # username column
+
+    # ── Delete User ───────────────────────────────────────────────────
+
+    def _manage_delete_user(self):
+        username = self._get_selected_manage_user()
+        if not username:
+            return
+        # Show a confirmation dialog
+        ConfirmDeleteDialog(self.root, username, self._confirm_delete_user)
+
+    def _confirm_delete_user(self, username):
+        success = utils.delete_user(username)
+        if success:
+            self._manage_log(f"✓ User '{username}' berhasil dihapus dari database.")
+            self._refresh_manage_user_list()
+            self._show_popup("Sukses", f"User '{username}' telah dihapus.", "success")
+        else:
+            self._manage_log(f"✗ Gagal menghapus user '{username}' (tidak ditemukan).")
+            self._show_popup("Error", f"User '{username}' tidak ditemukan di database.", "error")
+
+    # ── Change Folder Dataset ─────────────────────────────────────────
+
+    def _manage_change_folder(self):
+        username = self._get_selected_manage_user()
+        if not username:
+            return
+
+        folder = filedialog.askdirectory(
+            title=f"Pilih folder dataset baru untuk '{username}'")
+        if not folder:
+            return
+        if not os.path.isdir(folder):
+            self._show_popup("Error", "Direktori tidak valid!", "error")
+            return
+
+        self._manage_log(f"Memulai update dataset untuk user '{username}' dari folder: {folder}")
+        self._show_popup("Proses", f"Memulai re-registrasi dataset untuk '{username}'...\nProses berjalan di background.", "info")
+
+        threading.Thread(target=self._do_change_folder,
+                         args=(username, folder), daemon=True).start()
+
+    def _do_change_folder(self, username, folder):
+        """Re-register user with new folder dataset (runs in background thread)."""
+        try:
+            exts = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif')
+            files = sorted([os.path.join(folder, f) for f in os.listdir(folder)
+                           if f.lower().endswith(exts)])
+
+            if len(files) < 5:
+                self.root.after(0, self._change_folder_fail, username,
+                                f"Minimal 5 foto diperlukan, ditemukan {len(files)}")
+                return
+
+            entries = []
+            ok = fail = 0
+
+            for i, fp in enumerate(files, 1):
+                self._manage_log(f"  [{i}/{len(files)}] {os.path.basename(fp)}")
+
+                is_hand, msg = validate_hand_image(fp)
+                if not is_hand:
+                    self._manage_log(f"    ⚠ DITOLAK: {msg}")
+                    fail += 1
+                    continue
+
+                roi = preprocess_and_extract_roi(fp)
+                if roi is None:
+                    self._manage_log("    ✗ Gagal: ROI tidak terekstraksi")
+                    fail += 1
+                    continue
+
+                kp, desc = extract_sift_features(roi)
+                if desc is None or len(kp) == 0:
+                    self._manage_log("    ✗ Gagal: tidak ada fitur SIFT")
+                    fail += 1
+                    continue
+
+                entries.append({
+                    'descriptors': desc,
+                    'roi_image': roi,
+                    'filename': os.path.basename(fp)
+                })
+                ok += 1
+                self._manage_log(f"    ✓ OK ({len(kp)} keypoints)")
+
+            if ok < 5:
+                self.root.after(0, self._change_folder_fail, username,
+                                f"Hanya {ok} gambar valid (minimal 5)")
+                return
+
+            utils.register_user(username, entries)
+            self.root.after(0, self._change_folder_ok, username, ok, fail)
+
+        except Exception as e:
+            self.root.after(0, self._change_folder_fail, username, str(e))
+
+    def _change_folder_ok(self, username, ok, fail):
+        self._manage_log(f"✓ Dataset '{username}' berhasil diperbarui ({ok} ok, {fail} gagal)\n")
+        self._refresh_manage_user_list()
+        self._show_popup("Sukses", f"Dataset user '{username}' diperbarui dengan {ok} data palmprint!", "success")
+
+    def _change_folder_fail(self, username, msg):
+        self._manage_log(f"✗ Update dataset '{username}' GAGAL: {msg}\n")
+        self._show_popup("Update Gagal", msg, "error")
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  CONFIRMATION DELETE DIALOG
+# ════════════════════════════════════════════════════════════════════════
+
+class ConfirmDeleteDialog(ctk.CTkToplevel):
+    """Modern confirmation dialog for deleting a user."""
+
+    def __init__(self, parent, username, on_confirm):
+        super().__init__(parent)
+        self.title("Konfirmasi Hapus")
+        self.geometry("420x260")
+        self.resizable(False, False)
+        self.configure(fg_color=COLOR_BG)
+        self._username = username
+        self._on_confirm = on_confirm
+
+        self.transient(parent)
+        self.grab_set()
+
+        # Center on parent
+        self.update_idletasks()
+        px = parent.winfo_rootx()
+        py = parent.winfo_rooty()
+        pw = parent.winfo_width()
+        ph = parent.winfo_height()
+        x = px + (pw // 2) - 210
+        y = py + (ph // 2) - 130
+        self.geometry(f"+{x}+{y}")
+
+        card = ctk.CTkFrame(self, fg_color=COLOR_CARD, corner_radius=12,
+                            border_width=1, border_color=COLOR_BORDER)
+        card.pack(fill=tk.BOTH, expand=True, padx=16, pady=16)
+
+        # Warning icon
+        icon_lbl = ctk.CTkLabel(card, text="⚠", font=(FONT_FAMILY, 28, "bold"),
+                                text_color=COLOR_ERROR, width=58, height=58,
+                                corner_radius=29, fg_color="#FEE2E2")
+        icon_lbl.pack(pady=(18, 8))
+
+        ctk.CTkLabel(card, text="Hapus User?",
+                     font=(FONT_FAMILY, 15, "bold"),
+                     text_color=COLOR_TEXT_MAIN).pack(pady=(2, 4))
+
+        ctk.CTkLabel(card, text=f"Yakin ingin menghapus user '{username}'?\nSemua data palmprint akan dihapus permanen.",
+                     font=(FONT_FAMILY, 11), text_color=COLOR_TEXT_MUTED,
+                     wraplength=340, justify="center").pack(padx=16, pady=(0, 18))
+
+        btn_row = tk.Frame(card, bg=COLOR_CARD)
+        btn_row.pack(pady=(0, 10))
+
+        ctk.CTkButton(btn_row, text="Batal", width=120, height=36, corner_radius=8,
+                      fg_color=COLOR_LOG_BG, text_color=COLOR_TEXT_MAIN,
+                      hover_color=COLOR_BORDER, font=(FONT_FAMILY, 11, "bold"),
+                      command=self.destroy).pack(side=tk.LEFT, padx=(0, 10))
+
+        ctk.CTkButton(btn_row, text="Hapus", width=120, height=36, corner_radius=8,
+                      fg_color=COLOR_ERROR, text_color="#FFFFFF",
+                      hover_color="#DC2626", font=(FONT_FAMILY, 11, "bold"),
+                      command=self._do_confirm).pack(side=tk.LEFT)
+
+    def _do_confirm(self):
+        self._on_confirm(self._username)
+        self.destroy()
