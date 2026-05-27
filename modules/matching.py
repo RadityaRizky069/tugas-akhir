@@ -19,7 +19,8 @@ def match_features(descriptors1, descriptors2, kp1, kp2):
             if m.distance < 0.75 * n.distance:
                 good_matches.append(m)
 
-    if len(good_matches) < 4:
+    total_good = len(good_matches)
+    if total_good < 4:
         return 0, 0.0, []
 
     src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
@@ -31,7 +32,7 @@ def match_features(descriptors1, descriptors2, kp1, kp2):
         return 0, 0.0, []
 
     inliers_count = int(mask.sum())
-    percentage = min(100.0, (inliers_count / 10.0) * 100.0)
+    percentage = min(100.0, (inliers_count / total_good) * 100.0)
 
     inlier_matches = [good_matches[i] for i in range(len(good_matches)) if mask[i] == 1]
 
