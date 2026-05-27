@@ -29,15 +29,6 @@ except ImportError:
     print("=" * 60)
     sys.exit(1)
 
-try:
-    import mediapipe
-except ImportError:
-    print("=" * 60)
-    print("  MediaPipe tidak terinstall.")
-    print("  Jalankan:  pip install mediapipe")
-    print("=" * 60)
-    sys.exit(1)
-
 from gui.interface import PalmprintGUI
 
 

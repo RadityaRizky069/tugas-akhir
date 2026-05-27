@@ -10,7 +10,6 @@ import os
 from modules.preprocessing import preprocess_and_extract_roi, preprocess_and_extract_roi_detailed
 from modules.feature_extraction import extract_sift_features
 from modules.matching import match_features, make_decision
-from modules.validation import validate_hand_image
 from modules import utils
 
 # ── Aesthetic & Typography Settings ─────────────────────────────────────
@@ -34,7 +33,7 @@ FONT_FAMILY       = "Segoe UI"
 #  MODERN MESSAGE BOX (CUSTOM POPUP WINDOW)
 # ════════════════════════════════════════════════════════════════════════
 
-class ModernMessageBox(ctk.CTkToplevel):
+class ModernMessageBox(tk.Toplevel):
     """Custom popup window styled with the application's modern theme."""
 
     def __init__(self, parent, title, message, msg_type="info"):
@@ -42,7 +41,7 @@ class ModernMessageBox(ctk.CTkToplevel):
         self.title(title)
         self.geometry("400x230")
         self.resizable(False, False)
-        self.configure(fg_color=COLOR_BG)
+        self.configure(bg=COLOR_BG)
 
         # Remove default system icon/styling to look unified
         self.transient(parent)
@@ -309,7 +308,7 @@ class PalmprintGUI:
         info_box = ctk.CTkFrame(frm, fg_color="#EEF2F6", corner_radius=8, border_width=0)
         info_box.pack(fill=tk.X, pady=(10, 24))
         
-        ctk.CTkLabel(info_box, text="ℹ  Persyaratan Registrasi:\n• Minimal 5 file foto (.jpg, .png, .bmp)\n• Pastikan background foto bersih / abu-abu 18%\n• Validasi MediaPipe Hands akan memproses kesesuaian gambar.",
+        ctk.CTkLabel(info_box, text="ℹ  Persyaratan Registrasi:\n• Minimal 5 file foto (.jpg, .png, .bmp)\n• Pastikan background foto bersih / abu-abu 18%",
                      font=(FONT_FAMILY, 11), text_color=COLOR_TEXT_MUTED, justify="left", anchor="w"
                      ).pack(padx=16, pady=12, fill=tk.X)
 
@@ -608,13 +607,6 @@ class PalmprintGUI:
             for i, fp in enumerate(files, 1):
                 self._log(f"  [{i}/{len(files)}] {os.path.basename(fp)}")
 
-                # ── MediaPipe Hand Validation Gate ─────────────────────
-                is_hand, msg = validate_hand_image(fp)
-                if not is_hand:
-                    self._log(f"    ⚠ DITOLAK: {msg}")
-                    fail += 1
-                    continue
-
                 roi = preprocess_and_extract_roi(fp)
                 if roi is None:
                     self._log("    ✗ Gagal: ROI tidak terekstraksi")
@@ -686,13 +678,6 @@ class PalmprintGUI:
 
     def _do_verification(self, username, img_path):
         try:
-            # ── MediaPipe Hand Validation Gate ────────────────────────
-            is_hand, msg = validate_hand_image(img_path)
-            if not is_hand:
-                self.root.after(0, self._ver_fail,
-                                "Ini bukan telapak tangan!")
-                return
-
             roi_test, steps_test = preprocess_and_extract_roi_detailed(img_path)
             if roi_test is None:
                 self.root.after(0, self._ver_fail,
@@ -1018,12 +1003,6 @@ class PalmprintGUI:
             for i, fp in enumerate(files, 1):
                 self._manage_log(f"  [{i}/{len(files)}] {os.path.basename(fp)}")
 
-                is_hand, msg = validate_hand_image(fp)
-                if not is_hand:
-                    self._manage_log(f"    ⚠ DITOLAK: {msg}")
-                    fail += 1
-                    continue
-
                 roi = preprocess_and_extract_roi(fp)
                 if roi is None:
                     self._manage_log("    ✗ Gagal: ROI tidak terekstraksi")
@@ -1069,7 +1048,7 @@ class PalmprintGUI:
 #  CONFIRMATION DELETE DIALOG
 # ════════════════════════════════════════════════════════════════════════
 
-class ConfirmDeleteDialog(ctk.CTkToplevel):
+class ConfirmDeleteDialog(tk.Toplevel):
     """Modern confirmation dialog for deleting a user."""
 
     def __init__(self, parent, username, on_confirm):
@@ -1077,7 +1056,7 @@ class ConfirmDeleteDialog(ctk.CTkToplevel):
         self.title("Konfirmasi Hapus")
         self.geometry("420x260")
         self.resizable(False, False)
-        self.configure(fg_color=COLOR_BG)
+        self.configure(bg=COLOR_BG)
         self._username = username
         self._on_confirm = on_confirm
 
@@ -1126,5 +1105,6 @@ class ConfirmDeleteDialog(ctk.CTkToplevel):
                       command=self._do_confirm).pack(side=tk.LEFT)
 
     def _do_confirm(self):
-        self._on_confirm(self._username)
+        parent = self.master
         self.destroy()
+        parent.after(100, lambda: self._on_confirm(self._username))
