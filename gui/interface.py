@@ -771,11 +771,10 @@ class PalmprintGUI:
             self.label_result.config(text="✓  AKSES DITERIMA", fg=COLOR_SUCCESS)
             detail_text = (
                 f"Autentikasi Berhasil!\n"
-                f"• Skor Kecocokan: {pct:.1f}% ({inliers} inlier dari 10 maks)\n"
+                f"• Skor Kecocokan: {pct:.1f}% ({inliers} Inlier Terverifikasi RANSAC)\n"
                 f"• Database User: '{username}'\n"
                 f"• File Referensi Cocok: '{matched_filename}'\n"
-                f"• Analisis Teknis: Ditemukan {inliers} kecocokan deskriptor lokal SIFT yang valid setelah "
-                f"penyaringan outlier spasial (RANSAC Homography). Angka ini melampaui threshold minimal 50.0%."
+                f"• Analisis Teknis: Skor kemiripan geometri ini berhasil melampaui threshold minimal 50.0%."
             )
             self.label_detail.config(text=detail_text, fg=COLOR_TEXT_MAIN)
             self._show_popup("Verifikasi Berhasil", f"Akses diterima untuk user '{username}'!", "success")
@@ -783,11 +782,10 @@ class PalmprintGUI:
             self.label_result.config(text="✗  AKSES DITOLAK", fg=COLOR_ERROR)
             detail_text = (
                 f"Autentikasi Gagal!\n"
-                f"• Skor Kecocokan: {pct:.1f}% ({inliers} inlier dari 10 maks)\n"
+                f"• Skor Kecocokan: {pct:.1f}% ({inliers} Inlier Terverifikasi RANSAC)\n"
                 f"• Database User: '{username}'\n"
                 f"• File Referensi Cocok: '{matched_filename}'\n"
-                f"• Analisis Teknis: Hanya terdeteksi {inliers} kecocokan spasial fitur SIFT yang valid. "
-                f"Jumlah pencocokan di bawah batas minimal threshold keamanan verifikasi 50.0% (5 inlier)."
+                f"• Analisis Teknis: Skor kemiripan geometri berada di bawah batas minimal threshold keamanan verifikasi 50.0%."
             )
             self.label_detail.config(text=detail_text, fg=COLOR_TEXT_MAIN)
             self._show_popup("Verifikasi Gagal", f"Akses ditolak untuk user '{username}'.", "error")
