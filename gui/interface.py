@@ -6,10 +6,11 @@ import cv2
 from PIL import Image, ImageTk
 import os
 
-from modules.preprocessing import preprocess_and_extract_roi, preprocess_and_extract_roi_detailed
+from modules.preprocessing import preprocess_and_extract_roi, preprocess_and_extract_roi_detailed, check_image_quality
 from modules.feature_extraction import extract_sift_features
 from modules.matching import match_features, make_decision
 from modules import utils
+from modules.utils import serialize_keypoints, deserialize_keypoints
 
 # ── Aesthetic & Typography Settings ─────────────────────────────────────
 COLOR_BG          = "#F9FAFB"  # Light neutral gray background
@@ -631,6 +632,12 @@ class PalmprintGUI:
             for i, fp in enumerate(files, 1):
                 self._log(f"  [{i}/{len(files)}] {os.path.basename(fp)}")
 
+                qc_ok, qc_msg = check_image_quality(fp)
+                if not qc_ok:
+                    self._log(f"    ✗ {qc_msg}")
+                    fail += 1
+                    continue
+
                 roi = preprocess_and_extract_roi(fp)
                 if roi is None:
                     self._log("    ✗ Gagal: ROI tidak terekstraksi")
@@ -645,6 +652,7 @@ class PalmprintGUI:
 
                 entries.append({
                     'descriptors': desc,
+                    'keypoints': serialize_keypoints(kp),
                     'roi_image': roi,
                     'filename': os.path.basename(fp)
                 })
@@ -728,13 +736,20 @@ class PalmprintGUI:
             best_filename = ""
 
             for i, entry in enumerate(entries):
-                roi_db = entry['roi_image']
-                if roi_db is None or roi_db.size == 0:
+                desc_db = entry.get('descriptors')
+                if desc_db is None or len(desc_db) == 0:
                     continue
 
-                kp_db, desc_db = extract_sift_features(roi_db)
-                if desc_db is None or len(kp_db) == 0:
-                    continue
+                kp_data = entry.get('keypoints')
+                if kp_data is not None:
+                    kp_db = deserialize_keypoints(kp_data)
+                else:
+                    roi_db = entry['roi_image']
+                    if roi_db is None or roi_db.size == 0:
+                        continue
+                    kp_db, _ = extract_sift_features(roi_db)
+                    if kp_db is None or len(kp_db) == 0:
+                        continue
 
                 inliers, pct, inlier_m = match_features(
                     desc_test, desc_db, kp_test, kp_db)
@@ -744,7 +759,7 @@ class PalmprintGUI:
                     best_pct = pct
                     best_inlier_matches = inlier_m
                     best_kp_db = kp_db
-                    best_roi_db = roi_db
+                    best_roi_db = entry.get('roi_image', None)
                     best_filename = entry.get('filename', f"Template {i+1}")
 
             if best_inliers < 0:
@@ -831,10 +846,13 @@ class PalmprintGUI:
 
     def _show_viz(self, rgb):
         pil_img = Image.fromarray(rgb)
+        cw = self.canvas_viz.winfo_width()
+        ch = self.canvas_viz.winfo_height()
+        if cw > 1 and ch > 1:
+            pil_img.thumbnail((cw, ch), Image.LANCZOS)
         self._img_tk_ref = ImageTk.PhotoImage(pil_img)
-        self.canvas_viz.config(width=pil_img.width, height=pil_img.height)
         self.canvas_viz.delete("all")
-        self.canvas_viz.create_image(0, 0, anchor=tk.NW, image=self._img_tk_ref)
+        self.canvas_viz.create_image(cw // 2, ch // 2, anchor=tk.CENTER, image=self._img_tk_ref)
 
     # ════════════════════════════════════════════════════════════════════
     #  MANAGE USER VIEW
@@ -1025,6 +1043,12 @@ class PalmprintGUI:
             for i, fp in enumerate(files, 1):
                 self._manage_log(f"  [{i}/{len(files)}] {os.path.basename(fp)}")
 
+                qc_ok, qc_msg = check_image_quality(fp)
+                if not qc_ok:
+                    self._manage_log(f"    ✗ {qc_msg}")
+                    fail += 1
+                    continue
+
                 roi = preprocess_and_extract_roi(fp)
                 if roi is None:
                     self._manage_log("    ✗ Gagal: ROI tidak terekstraksi")
@@ -1039,6 +1063,7 @@ class PalmprintGUI:
 
                 entries.append({
                     'descriptors': desc,
+                    'keypoints': serialize_keypoints(kp),
                     'roi_image': roi,
                     'filename': os.path.basename(fp)
                 })

@@ -1,5 +1,7 @@
 import pickle
 import os
+import cv2
+import numpy as np
 
 DB_FILE = "palmprint_database.pkl"
 
@@ -43,3 +45,15 @@ def delete_user(username):
         save_database(data)
         return True
     return False
+
+
+def serialize_keypoints(keypoints):
+    return [(kp.pt[0], kp.pt[1], kp.size, kp.angle, kp.response, kp.octave, kp.class_id)
+            for kp in keypoints]
+
+
+def deserialize_keypoints(data):
+    if data is None:
+        return []
+    return [cv2.KeyPoint(x, y, size, angle, response, octave, class_id)
+            for x, y, size, angle, response, octave, class_id in data]

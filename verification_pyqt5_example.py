@@ -91,9 +91,8 @@ class VerificationPage(QWidget):
                                      "Peta relasi inlier descriptor antara citra uji (kiri) dan database (kanan).")
         self.viz_label = QLabel()
         self.viz_label.setAlignment(Qt.AlignCenter)
-        self.viz_label.setText("Hasil visualisasi SIFT akan ditampilkan di sini.\n"
-                               "Jika gambar lebih tinggi dari area yang terlihat, scrollbar akan muncul.")
-        self.viz_label.setWordWrap(True)
+        self.viz_label.setText("Hasil visualisasi SIFT akan ditampilkan di sini.")
+        self.viz_label.setScaledContents(True)
         self.viz_label.setStyleSheet("background: #e8f4fc; border: 1px solid #c0d6e8;")
         viz_card.layout().addWidget(self.viz_label)
         content_layout.addWidget(viz_card)

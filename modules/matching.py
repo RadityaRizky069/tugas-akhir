@@ -1,12 +1,11 @@
 import cv2
 import numpy as np
 
-# Configuration thresholds (can be tuned)
-DECISION_THRESHOLD = 75.0      # minimum inlier percentage to accept
-MIN_INLIERS = 15               # minimum absolute number of inliers
-LOWE_RATIO = 0.75              # Lowe's ratio threshold for good matches
-SYMMETRY_CHECK = True          # enable cross-check symmetry
-RANSAC_REPROJ_THRESH = 4.0     # RANSAC reprojection threshold
+DECISION_THRESHOLD = 50.0
+MIN_INLIERS = 5
+LOWE_RATIO = 0.75
+SYMMETRY_CHECK = True
+RANSAC_REPROJ_THRESH = 4.0
 
 
 def match_features(descriptors1, descriptors2, kp1, kp2):
@@ -17,7 +16,6 @@ def match_features(descriptors1, descriptors2, kp1, kp2):
         return 0, 0.0, []
 
     bf = cv2.BFMatcher(cv2.NORM_L2)
-    # matches from 1 to 2
     matches12 = bf.knnMatch(descriptors1, descriptors2, k=2)
     matches21 = bf.knnMatch(descriptors2, descriptors1, k=2)
 
@@ -31,10 +29,8 @@ def match_features(descriptors1, descriptors2, kp1, kp2):
         if m.distance < LOWE_RATIO * n.distance:
             good2.append(m)
 
-    # symmetry check
     good_matches = []
     if SYMMETRY_CHECK:
-        # create set of (queryIdx, trainIdx) for good2
         good2_set = {(m.trainIdx, m.queryIdx) for m in good2}
         for m in good1:
             if (m.queryIdx, m.trainIdx) in good2_set:
@@ -49,15 +45,21 @@ def match_features(descriptors1, descriptors2, kp1, kp2):
     src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
 
-    H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, RANSAC_REPROJ_THRESH)
+    H, inliers = cv2.estimateAffine2D(
+        src_pts, dst_pts,
+        method=cv2.RANSAC,
+        ransacReprojThreshold=RANSAC_REPROJ_THRESH,
+        maxIters=2000
+    )
 
-    if H is None or mask is None:
+    if H is None or inliers is None:
         return 0, 0.0, []
 
-    inliers_count = int(mask.sum())
+    inliers_count = int(inliers.sum())
     percentage = min(100.0, (inliers_count / total_good) * 100.0)
 
-    inlier_matches = [good_matches[i] for i in range(len(good_matches)) if mask[i] == 1]
+    inlier_mask = inliers.ravel().astype(bool)
+    inlier_matches = [good_matches[i] for i in range(len(good_matches)) if inlier_mask[i]]
 
     return inliers_count, percentage, inlier_matches
 
