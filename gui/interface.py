@@ -727,7 +727,7 @@ class PalmprintGUI:
                                 "Tidak ada kecocokan dengan data tersimpan")
                 return
 
-            decision = make_decision(best_pct)
+            decision = make_decision(best_pct, best_inliers)
 
             viz = self._build_match_viz(roi_test, kp_test,
                                         best_roi_db, best_kp_db,
