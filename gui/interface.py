@@ -337,13 +337,37 @@ class PalmprintGUI:
     # ════════════════════════════════════════════════════════════════════
 
     def _init_verification_frame(self, parent):
+        # ── Page‑level scrollable canvas ───────────────────────────────
+        scroll_canvas = tk.Canvas(parent, bg=COLOR_BG, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(parent, orient="vertical", command=scroll_canvas.yview)
+        scroll_canvas.configure(yscrollcommand=scrollbar.set)
+
+        inner = tk.Frame(scroll_canvas, bg=COLOR_BG)
+        canvas_window = scroll_canvas.create_window((0, 0), window=inner, anchor="nw")
+
+        def _on_inner_configure(event):
+            scroll_canvas.configure(scrollregion=scroll_canvas.bbox("all"))
+        inner.bind("<Configure>", _on_inner_configure)
+
+        def _on_canvas_configure(event):
+            scroll_canvas.itemconfig(canvas_window, width=event.width)
+        scroll_canvas.bind("<Configure>", _on_canvas_configure)
+
+        def _on_mousewheel(event):
+            scroll_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        scroll_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        scroll_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # ── All content below goes into `inner` instead of `parent` ──
         self._create_header_banner(
-            parent, "Verifikasi Telapak Tangan (1:1)",
+            inner, "Verifikasi Telapak Tangan (1:1)",
             "Verifikasi kesesuaian citra telapak tangan dengan data reference di database."
         )
 
         # Main 2-column grid
-        cols = tk.Frame(parent, bg=COLOR_BG)
+        cols = tk.Frame(inner, bg=COLOR_BG)
         cols.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
         cols.columnconfigure(0, weight=4) # Left Column: Controls & Result
         cols.columnconfigure(1, weight=6) # Right Column: Visual Preview & Matching
@@ -459,10 +483,11 @@ class PalmprintGUI:
                                      "Peta relasi inlier descriptor antara citra uji (kiri) dan database (kanan).")
         viz_card.pack(fill=tk.BOTH, expand=True)
 
-        viz_frame = tk.Frame(viz_card, bg=COLOR_LOG_BG, bd=1, relief=tk.SOLID, highlightbackground=COLOR_BORDER)
-        viz_frame.pack(fill=tk.BOTH, expand=True, padx=24, pady=(6, 24))
+        # Simple container for the SIFT match canvas (no nested scroll – page scroll handles it)
+        viz_inner = tk.Frame(viz_card, bg=COLOR_LOG_BG, bd=1, relief=tk.SOLID, highlightbackground=COLOR_BORDER)
+        viz_inner.pack(fill=tk.BOTH, expand=True, padx=24, pady=(6, 24))
 
-        self.canvas_viz = tk.Canvas(viz_frame, bg=COLOR_LOG_BG,
+        self.canvas_viz = tk.Canvas(viz_inner, bg=COLOR_LOG_BG,
                                     highlightthickness=0,
                                     width=560, height=280)
         self.canvas_viz.pack(fill=tk.BOTH, expand=True)
